@@ -9,3 +9,4 @@ db.sqlite3
 /staticfiles/
 /media/
 .DS_Store 
+.mypy_cache/
