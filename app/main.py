@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from .database import init_db
 from .api import auth, news, machines, duties, users, weather
 
@@ -23,6 +26,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Path("media").mkdir(exist_ok=True)
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 app.include_router(auth.router)
 app.include_router(news.router)

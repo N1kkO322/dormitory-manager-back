@@ -1,13 +1,25 @@
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from ..config import settings
 from ..database import get_db
 from ..models.machine import Machine
 from ..models.user import User
-from ..schemas.machine import MachineResponse, MachineStatusUpdate, MachineCreate
+from ..schemas.machine import (
+    IncorrectInfoReport,
+    MachineCreate,
+    MachineProblemReport,
+    MachineResponse,
+    MachineStatusUpdate,
+)
+from ..schemas.user import MessageResponse
 from ..api.auth import get_current_user
+from ..utils.email import send_email
 
 router = APIRouter(prefix="/api/machines", tags=["machines"])
+logger = logging.getLogger(__name__)
 
 @router.get("/", response_model=list[MachineResponse])
 async def get_machines(
@@ -38,6 +50,85 @@ async def create_machine(
     db.commit()
     db.refresh(machine)
     return machine
+
+@router.post(
+    "/report-problem",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def report_machine_problem(
+    report_data: MachineProblemReport,
+    current_user: User = Depends(get_current_user),
+):
+    recipient_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
+    if not recipient_email:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email для получения сообщений о проблемах не настроен",
+        )
+
+    reporter = f"{current_user.surname} {current_user.name}".strip()
+    body = (
+        "Сообщение о проблеме со стиральной машиной\n\n"
+        f"Машина: {report_data.name}\n"
+        f"Описание проблемы: {report_data.description}\n\n"
+        f"Отправитель: {reporter}\n"
+        f"Email отправителя: {current_user.email}"
+    )
+
+    try:
+        send_email(
+            recipient_email,
+            "Проблема со стиральной машиной DorMan",
+            body,
+        )
+    except Exception:
+        logger.exception("Failed to send machine problem report email")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось отправить сообщение о проблеме",
+        )
+
+    return MessageResponse(message="Сообщение о проблеме отправлено")
+
+@router.post(
+    "/report-incorrect-info",
+    response_model=MessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def report_incorrect_info(
+    report_data: IncorrectInfoReport,
+    current_user: User = Depends(get_current_user),
+):
+    recipient_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
+    if not recipient_email:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email для получения сообщений о некорректной информации не настроен",
+        )
+
+    reporter = f"{current_user.surname} {current_user.name}".strip()
+    body = (
+        "Сообщение о некорректности информации\n\n"
+        f"Описание: {report_data.description}\n\n"
+        f"Отправитель: {reporter}\n"
+        f"Email отправителя: {current_user.email}"
+    )
+
+    try:
+        send_email(
+            recipient_email,
+            "Некорректная информация DorMan",
+            body,
+        )
+    except Exception:
+        logger.exception("Failed to send incorrect info report email")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось отправить сообщение о некорректной информации",
+        )
+
+    return MessageResponse(message="Сообщение о некорректной информации отправлено")
 
 @router.patch("/{machine_id}", response_model=MachineResponse)
 async def update_machine_status(

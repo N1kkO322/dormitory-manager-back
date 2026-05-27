@@ -20,6 +20,8 @@ class Settings(BaseSettings):
 
     OPENWEATHERMAP_API_KEY: str | None = None
     OPENWEATHERMAP_CITY: str = "Saint Petersburg"
+
+    MEDIA_URL: str = "http://localhost:8000/media"
     
     class Config:
         env_file = ".env"
