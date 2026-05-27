@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import init_db
-from .api import auth, news, machines, duties, users  
+from .api import auth, news, machines, duties, users, weather
 
 app = FastAPI(
     title="DorMan API",
@@ -29,6 +29,7 @@ app.include_router(news.router)
 app.include_router(machines.router)
 app.include_router(duties.router)
 app.include_router(users.router) 
+app.include_router(weather.router)
 
 @app.get("/")
 async def root():
