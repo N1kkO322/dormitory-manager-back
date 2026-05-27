@@ -166,7 +166,7 @@ async def get_users(
     role_type: str | None = Query(default=None, alias="type"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    _current_user: User = Depends(require_employee),
+    _current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     query = apply_user_filters(db.query(User), name, group, block, role or role_type)
